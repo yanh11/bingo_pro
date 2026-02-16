@@ -177,7 +177,9 @@ function updateHistory() {
 function playAudio(number) {
     return new Promise(resolve=>{
         isPlaying = true;
-        const audio = new Audio(number.toString().padStart(2,"0") + ".m4a");
+        const fileName =
+            "audio/" + number.toString().padStart(2, "0") + ".m4a";
+        const audio = new Audio(fileName);
         audio.playbackRate =
             parseFloat(document.getElementById("voiceSpeed").value);
         audio.play();

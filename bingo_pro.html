@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>賓果抽號機</title>
+
+<style>
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #f2f4f7;
+    text-align: center;
+}
+
+h1 {
+    font-size: 36px;
+    margin-top: 20px;
+}
+
+.subtitle {
+    color: #555;
+    margin-top: -10px;
+}
+
+#currentNumber {
+    font-size: 120px;
+    font-weight: bold;
+    color: #2f5bd3;
+    margin: 20px 0;
+}
+
+.countText {
+    font-size: 20px;
+    color: #555;
+}
+
+.card {
+    background: #fff;
+    width: 90%;
+    max-width: 500px;
+    margin: 20px auto;
+    padding: 20px;
+    border-radius: 16px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    text-align: left;
+}
+
+.row {
+    margin-bottom: 15px;
+}
+
+input[type=range] {
+    width: 100%;
+}
+
+button {
+    width: 90%;
+    max-width: 500px;
+    padding: 18px;
+    font-size: 20px;
+    border: none;
+    border-radius: 16px;
+    margin: 12px 0;
+    cursor: pointer;
+}
+
+.primary {
+    background: #2f5bd3;
+    color: white;
+}
+
+.secondary {
+    background: #e0e3ea;
+}
+
+#history {
+    display: none;
+    width: 90%;
+    max-width: 600px;
+    margin: 20px auto;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+}
+
+#history.show {
+    display: flex;
+}
+
+.numberBox {
+    width: 40px;
+    height: 40px;
+    background: #ddd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-weight: bold;
+}
+</style>
+</head>
+<body>
+
+<h1>賓果抽號機</h1>
+<div class="subtitle">目前號碼</div>
+
+<div id="currentNumber">--</div>
+<div class="countText">已開號碼數：<span id="count">0</span> / 75</div>
+
+<div class="card">
+    <div class="row">
+        語音速度： <span id="voiceValue">1.0x</span>
+        <input type="range" id="voiceSpeed" min="0.8" max="1.5" step="0.1" value="1">
+    </div>
+
+    <div class="row">
+        自動抽號間隔： <span id="intervalValue">3 秒</span>
+        <input type="range" id="intervalSpeed" min="1" max="10" step="0.5" value="3">
+    </div>
+</div>
+
+<button class="primary" onclick="drawNumber()">下一個號碼</button>
+<button class="secondary" onclick="startAuto()">開始自動抽號</button>
+<button class="secondary" onclick="stopAuto()">停止自動抽號</button>
+<button class="secondary" onclick="playTest()">播放測試音</button>
+<button class="secondary" onclick="endGame()">結束本回合</button>
+<button class="secondary" onclick="toggleHistory()">顯示已開號碼</button>
+<button class="secondary" onclick="resetGame()">新回合</button>
+
+<div id="history"></div>
+
+<script>
+let remaining = [];
+let drawn = [];
+let autoTimer = null;
+let isPlaying = false;
+
+function init() {
+    remaining = [];
+    drawn = [];
+    for (let i = 1; i <= 75; i++) {
+        remaining.push(i);
+    }
+    document.getElementById("currentNumber").innerText = "--";
+    document.getElementById("count").innerText = 0;
+    document.getElementById("history").innerHTML = "";
+}
+
+async function drawNumber() {
+    if (isPlaying) return;
+    if (remaining.length === 0) return;
+
+    const index = Math.floor(Math.random() * remaining.length);
+    const number = remaining.splice(index,1)[0];
+    drawn.push(number);
+
+    document.getElementById("currentNumber").innerText =
+        number.toString().padStart(2,"0");
+
+    document.getElementById("count").innerText = drawn.length;
+
+    updateHistory();
+    await playAudio(number);
+}
+
+function updateHistory() {
+    const history = document.getElementById("history");
+    history.innerHTML = "";
+    drawn.forEach(num=>{
+        const box = document.createElement("div");
+        box.className = "numberBox";
+        box.innerText = num.toString().padStart(2,"0");
+        history.appendChild(box);
+    });
+}
+
+function playAudio(number) {
+    return new Promise(resolve=>{
+        isPlaying = true;
+        const audio = new Audio(number.toString().padStart(2,"0") + ".m4a");
+        audio.playbackRate =
+            parseFloat(document.getElementById("voiceSpeed").value);
+        audio.play();
+        audio.onended = ()=>{
+            isPlaying = false;
+            resolve();
+        };
+    });
+}
+
+let autoRunning = false;
+
+async function startAuto() {
+    if (autoRunning) return;
+
+    autoRunning = true;
+
+    while (autoRunning && remaining.length > 0) {
+
+        await drawNumber();  // 等播放完
+
+        if (!autoRunning) break;
+
+        const interval =
+            parseFloat(document.getElementById("intervalSpeed").value) * 1000;
+
+        await new Promise(resolve => setTimeout(resolve, interval));
+    }
+}
+
+function stopAuto() {
+    autoRunning = false;
+}
+
+function resetGame() {
+    stopAuto();
+    init();
+}
+
+function endGame() {
+    stopAuto();
+    alert("本回合結束！");
+}
+
+function toggleHistory() {
+    const history = document.getElementById("history");
+    history.classList.toggle("show");
+}
+
+
+function playTest() {
+    playAudio(1);
+}
+
+document.getElementById("voiceSpeed").oninput = function() {
+    document.getElementById("voiceValue").innerText = this.value + "x";
+};
+
+document.getElementById("intervalSpeed").oninput = function() {
+    document.getElementById("intervalValue").innerText = this.value + " 秒";
+};
+
+init();
+</script>
+
+</body>
+</html>
